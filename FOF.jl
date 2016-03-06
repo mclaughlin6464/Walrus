@@ -1,17 +1,18 @@
 # Friends of Friends clustering.  (Tom Abel, 1/2016)
+
 module FOF
 
 using NearestNeighbors
 using DataStructures
-using FixedLengthVectors: FixedLengthVector
+#using FixedLengthVectors: FixedLengthVector
 
 export groups
 
 """
-Friends of Friends Algorithm: for sets of points x, using linking length l and returning groups with more than minlength members in an array of arrays of indeces inot the point data provided. 
+Friends of Friends Algorithm: for sets of points x, using linking length l and returning groups with more than minlength members in an array of arrays of indeces inot the point data provided.
     using Gadfly
-    x = rand((2,100)) 
-    gps = FOF.groups(x,.1, 3) 
+    x = rand((2,100))
+    gps = FOF.groups(x,.1, 3)
     n = 1
     plot(layer(x=x[1,gps[n]], y=x[2,gps[n]], Geom.point,Theme(default_color=colorant"red")), layer(x=x[1,:], y=x[2,:], Geom.point, Theme(default_color=colorant"blue"))  )
 
@@ -23,7 +24,7 @@ function groups(x, l, minlength)
     ds = IntDisjointSets(Npart)
     for i in 1:Npart
         idxs = inrange(tree, x[:,i], l, false) # within search radius
-        for j in  eachindex(idxs) # 
+        for j in  eachindex(idxs) #
             union!(ds,i,idxs[j])
         end
         if (num_groups(ds) == 1) # just in case people use too large a linking length don't waste time
@@ -32,7 +33,7 @@ function groups(x, l, minlength)
         end  # in case everything has been joined already exit
     end
     println("FOF: finished grouping")
-    
+
     idxs = find(ds.ranks) # all non-zero ranks are parent particles in groups
     groupid = [ds.parents[idxs[i]] => i  for i in eachindex(idxs)]
     grouplen = Dict{Int,Int}()
@@ -70,10 +71,10 @@ function flv_groups(x, l, minlength)
     tree = KDTree(x) # Build tree with point data provided: KDtree is twice as fast as a balltree
     println("FOF: built tree")
     ds = IntDisjointSets(Npart)
-    idxs = FixedLengthVector(Int64, Npart) # preallocate memory
+    idxs = []#FixedLengthVector(Int64, Npart) # preallocate memory
     for i in 1:Npart
         inrange(tree, idxs, x[:,i], l, false) # within search radius
-        for j in  1:idxs.i # 
+        for j in  1:idxs.i #
             union!(ds,i,idxs.x[j])
         end
         if (num_groups(ds) == 1) # just in case a user uses too large a linking length don't waste time
@@ -82,7 +83,7 @@ function flv_groups(x, l, minlength)
         end  # in case everything has been joined already exit
     end
     println("FOF: finished grouping")
-    
+
     idx = find(ds.ranks) # all non-zero ranks are parent particles in groups
     groupid = [ds.parents[idx[i]] => i  for i in eachindex(idx)]
     grouplen = Dict{Int,Int}()
