@@ -173,6 +173,7 @@ function read_gadget_data(filename)
 
 
     close(istream)
+    #TODO doesn't return redshift and other relevant info
     return p
 end
 
