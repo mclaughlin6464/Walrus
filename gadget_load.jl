@@ -3,7 +3,7 @@
 #modified by Sean McLaughlin 3/2016
 module gadget_load
 
-export read_gadget_header, read_gadget_data
+export read_gadget_header, read_gadget_data, particle
 
 type gadget_header
     npart::Array{Int32,1}
@@ -27,7 +27,7 @@ type gadget_header
 end
 
 #Particles
-#TODO may have to switch the dimensions of the arrays around
+#TODO define indexing to return slices of all the invdividual arrays
 type particle
     x::Array{Float64, 2} # positions
     v::Array{Float64, 2} # velocities
@@ -44,6 +44,7 @@ type particle
         @assert size(x,1) == size(pot, 1)
 
         new(x,v,id,m,pot)
+    end
 end
 
 type point
@@ -53,20 +54,23 @@ type point
     pot::Float32
 end
 
-function read_gadget_header(filename)
+function read_gadget_header(filename, verbose = false)
     blk = UInt32(0)
     head = gadget_header(zeros(Int32,6), zeros(Float64,6), Float64(0.), Float64(0.),
                          Int32(0), Int32(0), zeros(UInt32,6), Int32(0), Int32(0), Float64(0.),
                          Float64(0.), Float64(0.), Float64(0.), Int32(0), Int32(0), zeros(Int32,6), Int32(0), lpad(' ', 60, ' '))
 
 
-#    fn = "/Users/tabel/Research/TetraPart/data/23eV/Gadget/NP128/snapshot_039"
+    #    fn = "/Users/tabel/Research/TetraPart/data/23eV/Gadget/NP128/snapshot_039"
     istream = open(filename, "r")
-
-    println("am at position ", position(istream), " in this file")
+    if verbose
+        println("am at position ", position(istream), " in this file")
+    end
 
     blk = read(istream, Int32, (1))
-    println(blk)
+    if verbose
+        println(blk)
+    end
 
     head.npart = read(istream, Int32, (6))
     head.mass = read(istream, Float64, (6))
@@ -87,62 +91,85 @@ function read_gadget_header(filename)
     head.flag_entropy_instead_u = read(istream, Int32)
     dummy = read(istream, Char,60)
     blk = read(istream, Int32)
-    println(blk)
+    if verbose
+        println(blk)
 
-    println("read header from file:", filename)
-    println("redshift:", head.redshift, "\t scale factor:", head.time)
-    println("npart: " , head.npart)
-    println("masses:", head.mass)
-    println("am at position ", position(istream), " in this file")
+        println("read header from file:", filename)
+        println("redshift:", head.redshift, "\t scale factor:", head.time)
+        println("npart: " , head.npart)
+        println("masses:", head.mass)
+        println("am at position ", position(istream), " in this file")
+    end
 
     close(istream)
     return head
 end
 
-function read_gadget_data(filename)
+#TODO Quiet option?
+function read_gadget_data(filename, verbose = false)
 
-    head = read_gadget_header(filename)
+    head = read_gadget_header(filename, verbose)
 
     istream = open(filename, "r")
-    seek(istream, 264)                     # jump past header
-    println("am at position ", position(istream), " in this file")
+    seek(istream, 264)# jump past header
+    if verbose
+        println("am at position ", position(istream), " in this file")
+    end
 
     Npart = sum(head.npart)
 
     blk = read(istream, Int32)
-    println(blk)
+    if verbose
+        println(blk)
+    end
     #p = particle(zeros(Float32, Npart, 3), zeros(Float32, Npart, 3), zeros(Float32, Npart))
     p = particle(zeros(Float32, 1, 3), zeros(Float32, 1, 3), zeros(Int32, 1), zeros(Float32, 1), zeros(Float32, 1))
     p.x = read(istream, Float32, (3, Npart))
     blk = read(istream, Int32)
-    println(blk)
+    if verbose
+        println(blk)
+    end
 
     blk = read(istream, Int32)
-    println(blk)
+    if verbose
+        println(blk)
+    end
     p.v = read(istream, Float32, (3, Npart))  # read velocities
     blk = read(istream, Int32)
-    println(blk)
+    if verbose
+        println(blk)
+    end
 
     blk = read(istream, Int32)
-    println(blk)
+    if verbose
+        println(blk)
+    end
     p.id = read(istream, Int32, (Npart))        # read ids
     blk = read(istream, Int32)
-    println(blk)
+    if verbose
+        println(blk)
+    end
 
     NwithMass = 0
     for i in 1:6
-       if head.mass[i] == Float32(0.) && head.npart[i] > 0
+       if head.mass[i] > Float32(0.) && head.npart[i] > 0
            NwithMass += head.npart[i]
        end
     end
-    println("# of particles with masses stored in file: ", NwithMass)
+    if verbose
+        println("# of particles with masses stored in file: ", NwithMass)
+    end
 
     if NwithMass > 0
        blk = read(istream, Int32)
-       println(blk)
+       if verbose
+           println(blk)
+       end
        masses = read(istream, Float32, (NwithMass)) # read masses
        blk = read(istream, Int32)
-       println(blk)
+       if verbose
+           println(blk)
+       end
     end
     # define the mass array even in the case where we have all equal masses.
     # could do this better  ....
@@ -153,7 +180,9 @@ function read_gadget_data(filename)
        if head.npart[i] > 0
            ncount = (count+head.npart[i])
            if head.mass[i] > Float32(0.)
-               println(i," ", count, " ",ncount)
+               if verbose
+                   println(i," ", count, " ",ncount)
+               end
                p.m[count:(ncount-1)] = head.mass[i]
                count = ncount
            elseif head.npart[i] > 0
@@ -166,10 +195,18 @@ function read_gadget_data(filename)
     end
 
     blk = read(istream, Int32)
-    println(blk)
-    p.pot = read(istream, Float32, (Npart)) # read potential
-    blk = read(istream, Int32)
-    println(blk)
+    if verbose
+        println(blk)
+    end
+    try
+        p.pot = read(istream, Float32, (Npart)) # read potential
+        blk = read(istream, Int32)
+        if verbose
+            println(blk)
+        end
+    catch LoadError#no potentials
+        p.pot = zeros(Float32, Npart)
+    end
 
 
     close(istream)

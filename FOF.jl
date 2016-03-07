@@ -17,6 +17,7 @@ Friends of Friends Algorithm: for sets of points x, using linking length l and r
     plot(layer(x=x[1,gps[n]], y=x[2,gps[n]], Geom.point,Theme(default_color=colorant"red")), layer(x=x[1,:], y=x[2,:], Geom.point, Theme(default_color=colorant"blue"))  )
 
 """
+#TODO verbose option
 function groups(x, l, minlength)
     Npart = size(x)[2]
     tree = KDTree(x) # Build tree with point data provided: KDtree is twice as fast as a balltree
@@ -54,7 +55,7 @@ function groups(x, l, minlength)
     # and provide them in reverse order with the biggest group first
     sid = sort(collect(grouplen), by = tuple -> last(tuple),rev=true)
     grouplo = [sid[i].first => i for i in 1:length(sid)]
-    gps = [[] for i in 1:Ngroups]
+    gps = [Int[] for i in 1:Ngroups]
     for i in 1:Npart
         if get(grouplen, ds.parents[i], 0) > 0
             push!(gps[grouplo[ds.parents[i]]], i)
