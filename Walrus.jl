@@ -26,21 +26,22 @@ type Halo
     E::Float64
     spin_param::Float64
 
+    #indexing of array'd things is wrong.
+    #gonna see if i can change the particle object
     function Halo(id::Int, particles::particle, halo_parts::Array{Int, 1})
         total_mass = sum(particles.m[halo_parts])
-        com = sum(particles.x[halo_parts].*particles.m[halo_parts], 1)/total_mass
+        com = sum(particles.x[halo_parts].*particles.m[halo_parts], 2)./total_mass
         R_200_h= cbrt(G*total_mass)/100#R200 times h^2/3. Not sure how to simplify more
         N = size(halo_parts, 1)
-        velocity = mean(particles.v[halo_parts], 1)
-        vel_disp = std(particles.v[halo_parts], 1)
-        for i in halo_parts
-            println("$(particles.x[i])", "$(com) " )
-        end
+        velocity = mean(particles.v[halo_parts], 2)
+        vel_disp = std(particles.v[halo_parts], 2)
+        println("$(size(sum(particles.x[halo_parts].*particles.m[halo_parts], 1)) )")
+        #println("$(size(particles.x[halo_parts]))")
         #println("$(particles.m[halo_parts].*particles.x[halo_parts] )" )
         #println("$(particles.m[halo_parts].*(particles.x[halo_parts]-com) )" )
         J = sum(cross(particles.m[halo_parts].*(particles.x[halo_parts]-com),
-            (particles.v[halo_parts]-velocity)),1 )
-        E = abs(sum(particles.pot[halo_parts],1)) #TODO pot of halo or all parts?
+            (particles.v[halo_parts]-velocity)),2 )
+        E = abs(sum(particles.pot[halo_parts],2)) #TODO pot of halo or all parts?
         if E == 0 #gadget didn't calculate the potentials!
             #TODO better flag than this!
             calc_potential!(particles, halo_parts)
@@ -142,7 +143,7 @@ end
 q = .5
 dx = q/Npart_1D #heard this is a good guess for linking length; not convinced.
 dx = 10
-println("$(dx)")
+
 minlength = floor(Npart/1000) #?
 
 gps = groups(particles.x, dx, minlength)

@@ -28,6 +28,7 @@ end
 
 #Particles
 #TODO define indexing to return slices of all the invdividual arrays
+#TODO subtype of abstract array?
 type particle
     x::Array{Float64, 2} # positions
     v::Array{Float64, 2} # velocities
