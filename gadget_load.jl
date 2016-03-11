@@ -1,9 +1,6 @@
 #handles I/O of gadget files
 #Written by Tom Abel 1/2016
 #modified by Sean McLaughlin 3/2016
-module gadget_load
-
-export read_gadget_header, read_gadget_data, particle
 
 type gadget_header
     npart::Array{Int32,1}
@@ -24,35 +21,6 @@ type gadget_header
     npartTotalHighWord::Array{Int32,1}
     flag_entropy_instead_u::Int32
     fill::AbstractString
-end
-
-#Particles
-#TODO define indexing to return slices of all the invdividual arrays
-#TODO subtype of abstract array?
-type particle
-    x::Array{Float64, 2} # positions
-    v::Array{Float64, 2} # velocities
-    id::Array{Int32,1}  # ids
-    m::Array{Float32,1} # mass
-    pot::Array{Float32,1} # gravitational potential
-
-    function particle(x, v, id, m , pot)
-        #assert dimensionality
-        @assert size(x,1) == size(v,1)
-        @assert size(x,2) == size(v,2)
-        @assert size(x,1) == size(id,1)
-        @assert size(x,1) == size(m,1)
-        @assert size(x,1) == size(pot, 1)
-
-        new(x,v,id,m,pot)
-    end
-end
-
-type point
-    x::Array{Float32,1}
-    v::Array{Float32,1}
-    id::Int32
-    pot::Float32
 end
 
 function read_gadget_header(filename, verbose = false)
@@ -124,7 +92,7 @@ function read_gadget_data(filename, verbose = false)
         println(blk)
     end
     #p = particle(zeros(Float32, Npart, 3), zeros(Float32, Npart, 3), zeros(Float32, Npart))
-    p = particle(zeros(Float32, 1, 3), zeros(Float32, 1, 3), zeros(Int32, 1), zeros(Float32, 1), zeros(Float32, 1))
+    p = Particles(zeros(Float32, 1, 3), zeros(Float32, 1, 3), zeros(Int32, 1), zeros(Float32, 1), zeros(Float32, 1))
     p.x = read(istream, Float32, (3, Npart))
     blk = read(istream, Int32)
     if verbose
@@ -209,10 +177,7 @@ function read_gadget_data(filename, verbose = false)
         p.pot = zeros(Float32, Npart)
     end
 
-
     close(istream)
     #TODO doesn't return redshift and other relevant info
-    return p
-end
-
+    return p, head
 end

@@ -1,12 +1,8 @@
 # Friends of Friends clustering.  (Tom Abel, 1/2016)
 
-module FOF
-
 using NearestNeighbors
 using DataStructures
 #using FixedLengthVectors: FixedLengthVector
-
-export groups
 
 """
 Friends of Friends Algorithm: for sets of points x, using linking length l and returning groups with more than minlength members in an array of arrays of indeces inot the point data provided.
@@ -64,58 +60,4 @@ function groups(x, l, minlength)
 
     println("FOF: Found ", Ngroups, " with ", minlength, " or more points")
     gps # An array of different  sized arrays containing the particle ids in the groups is returned
-end
-
-
-function flv_groups(x, l, minlength)
-    Npart = size(x)[2]
-    tree = KDTree(x) # Build tree with point data provided: KDtree is twice as fast as a balltree
-    println("FOF: built tree")
-    ds = IntDisjointSets(Npart)
-    idxs = []#FixedLengthVector(Int64, Npart) # preallocate memory
-    for i in 1:Npart
-        inrange(tree, idxs, x[:,i], l, false) # within search radius
-        for j in  1:idxs.i #
-            union!(ds,i,idxs.x[j])
-        end
-        if (num_groups(ds) == 1) # just in case a user uses too large a linking length don't waste time
-            println("FOF: All points were linked. Exiting." )
-            break
-        end  # in case everything has been joined already exit
-    end
-    println("FOF: finished grouping")
-
-    idx = find(ds.ranks) # all non-zero ranks are parent particles in groups
-    groupid = [ds.parents[idx[i]] => i  for i in eachindex(idx)]
-    grouplen = Dict{Int,Int}()
-    for i in 1:Npart
-        if get(groupid, ds.parents[i], 0) > 0
-            grouplen[ds.parents[i]] = get(grouplen, ds.parents[i], 0) + 1
-        end
-    end
-
-    # now we collect the actual particles in the groups of the length we are interested in
-    for (k,v) in grouplen
-        if (v < minlength)
-            delete!(grouplen, k)
-        end
-    end
-
-    Ngroups = length(grouplen)
-    # and provide them in reverse order with the biggest group first
-    sid = sort(collect(grouplen), by = tuple -> last(tuple),rev=true)
-    grouplo = [sid[i].first => i for i in 1:length(sid)]
-    gps = [[] for i in 1:Ngroups]
-    for i in 1:Npart
-        if get(grouplen, ds.parents[i], 0) > 0
-            push!(gps[grouplo[ds.parents[i]]], i)
-        end
-    end
-
-    println("FOF: Found ", Ngroups, " with ", minlength, " or more points")
-    gps # An array of different  sized arrays containing the particle ids in the groups is returned
-end
-
-
-
 end
