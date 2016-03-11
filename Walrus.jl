@@ -4,6 +4,8 @@
 module Walrus
 
 using ArgParse
+using NearestNeighbors
+using DataStructures
 
 include("gadget_load.jl")
 include("FOF.jl")
@@ -55,6 +57,9 @@ particles, header = read_gadget_data(input_fname, false)
 const BoxSize = header.BoxSize
 const H = header.HubbleParam
 
+#masses are in units of 1e10 m_sun/h, and distances are Mpc/h
+#h=0.633657
+
 Npart = size(particles, 1)
 Ndim = size(particles, 2)
 Npart_1D = Npart
@@ -70,7 +75,12 @@ dx = 2
 
 #minlength = floor(Npart/1000) #?
 
-gps = groups(particles.x, dx, 10)
+gps = groups(particles.x, dx, 10)#, particles.v, 1000)
+
+if size(gps,1) == 0
+    println("No halos found; exiting.")
+    quit()
+end
 
 halos = Array{Halo}(size(gps,1))
 halo_ids = collect(1:size(gps,1))

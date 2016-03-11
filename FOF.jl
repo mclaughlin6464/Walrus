@@ -1,7 +1,6 @@
 # Friends of Friends clustering.  (Tom Abel, 1/2016)
 
-using NearestNeighbors
-using DataStructures
+
 #using FixedLengthVectors: FixedLengthVector
 
 """
@@ -14,15 +13,34 @@ Friends of Friends Algorithm: for sets of points x, using linking length l and r
 
 """
 #TODO verbose option
-function groups(x, l, minlength)
+function groups(x, l, minlength, v = nothing, l_v = nothing)
+    if (v == nothing && l_v != nothing) || (v != nothing && l_v == nothing)
+        throw(ArgumentError("Both v and l_v must be specified"))
+    end
+
     Npart = size(x)[2]
     tree = KDTree(x) # Build tree with point data provided: KDtree is twice as fast as a balltree
+    if v != nothing
+        tree_v = KDTree(v)
+    end
     println("FOF: built tree")
     ds = IntDisjointSets(Npart)
     for i in 1:Npart
-        idxs = inrange(tree, x[:,i], l, false) # within search radius
-        for j in  eachindex(idxs) #
-            union!(ds,i,idxs[j])
+        idxs = IntSet(inrange(tree, x[:,i], l, false)) # within search radius
+        #TODO no velcoties or positions are linked?
+        if v != nothing
+            #println(idxs)
+            idxs_v = IntSet(inrange(tree_v, v[:,i], l_v, false))
+            #println(idxs_v)
+            #println(size(idxs_v))
+            #changes idxs to an IntSet. Probably fine.
+            intersect!(idxs, idxs_v)
+
+            #println(idxs)
+            #println("\n")
+        end
+        for idx in idxs #
+            union!(ds,i,idx)
         end
         if (num_groups(ds) == 1) # just in case people use too large a linking length don't waste time
             println("FOF: All points were linked. Exiting." )
