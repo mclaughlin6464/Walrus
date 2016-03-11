@@ -79,3 +79,49 @@ function groups(x, l, minlength, v = nothing, l_v = nothing)
     println("FOF: Found ", Ngroups, " with ", minlength, " or more points")
     gps # An array of different  sized arrays containing the particle ids in the groups is returned
 end
+
+#TODO ranks, parents. I want this to work with the above api. 
+type ID_Set#datatype that is similar to IntDisjointSets but more general
+    #doesn't require sequential integers
+    main_dict::Dictionary
+    ngroups::Int
+
+    function ID_Set(I::Array{Int, 1})
+        main_dict = Dict{Int,Set}(i => Set(i) for i in I)
+        ngroups = size(I,1)
+        new(main_dict, ngroups)
+    end
+end
+
+function union!(ds::ID_Set, i1::Int, i2::Int)
+    if i2 in ds.main_dict[i1]
+        return nothing
+    end
+
+    push!(ds.main_dict[i1], i2)
+    ds.main_dict[i2] = ds.main_dict[i1]
+    ngroups-=1
+    nothing
+end
+
+function num_groups(ds::ID_Set) = ID_Set.ngroups
+
+
+
+#NOTE should I have it do all dims? Need that for 1 box but not several
+function link_boundaries(P_box1::Particles, P_box2::Particles, l::Float64, ds::IntDisjointSets)
+    for dim in 1:3
+        box_correction = zeros(3)
+        box_correction[dim] = BoxSize
+        for p1 in P_box1[P_box1.x[:,dim]< l]
+            for p2 in P_box2[P_box2.x[:, dim]> BoxSize - l]
+                if in_same_set(ds, p1, p2)#NOTE this will fail.
+                    #set needs to track id's; not implemented!
+                    continue
+                elseif euclidian(p1.x, p2.x+box_correction) < l
+                    union!(ds, p1, p2)#NOTE Not implemented!
+                end
+            end
+        end
+    end
+end
