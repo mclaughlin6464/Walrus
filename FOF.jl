@@ -26,6 +26,8 @@ function groups(x, l, minlength, v = nothing, l_v = nothing)
         idxs = IntSet(inrange(tree, x[:,i], l, false)) # within search radius
 
         #add boundary conditions here
+        boundary_idxs = link_boundaries(tree, x[:,i], l)
+        union!(idxs, boundary_idxs)
 
         if v != nothing
             idxs_v = IntSet(inrange(tree_v, v[:,i], l_v, false))
@@ -40,6 +42,7 @@ function groups(x, l, minlength, v = nothing, l_v = nothing)
             break
         end  # in case everything has been joined already exit
     end
+    """
     println("FOF: Doing boundaries")
     #take care of periodic boundary conditions
     if num_groups(ds) != 1
@@ -52,7 +55,7 @@ function groups(x, l, minlength, v = nothing, l_v = nothing)
         end
     end
     println("FOF: finished grouping")
-
+    """
     idxs = find(ds.ranks) # all non-zero ranks are parent particles in groups
     groupid = [ds.parents[idxs[i]] => i  for i in eachindex(idxs)]
     grouplen = Dict{Int,Int}()
@@ -82,6 +85,28 @@ function groups(x, l, minlength, v = nothing, l_v = nothing)
 
     println("FOF: Found ", Ngroups, " with ", minlength, " or more points")
     gps # An array of different  sized arrays containing the particle ids in the groups is returned
+end
+
+function link_boundaries(tree::KDTree, dim::Int, x::Array{Float64,1}, l::Real)
+    if x[dim] > l
+        return IntSet()
+    end
+
+    BoxCorrection = zeros(size(x,1))
+    BoxCorrection[dim] = BoxSize
+    idxs = IntSet(inrange(tree, x+BoxCorrection, l, false)) # within search radius
+    return idxs
+end
+
+function link_boundaries(tree::KDTree, x::Array{Float64,1}, l::Real)
+    Ndim = size(x,1)
+    output_set = IntSet()
+
+    for dim in 1:Ndim
+        idxs = link_boundaries(tree, dim, x, l)
+        union!(output_set, idxs)
+    end
+    return output_set
 end
 
 #TODO combine these 2 methods!
