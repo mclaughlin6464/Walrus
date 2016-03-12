@@ -1,8 +1,5 @@
 # Friends of Friends clustering.  (Tom Abel, 1/2016)
 
-
-#using FixedLengthVectors: FixedLengthVector
-
 """
 Friends of Friends Algorithm: for sets of points x, using linking length l and returning groups with more than minlength members in an array of arrays of indeces inot the point data provided.
     using Gadfly
@@ -27,17 +24,13 @@ function groups(x, l, minlength, v = nothing, l_v = nothing)
     ds = IntDisjointSets(Npart)
     for i in 1:Npart
         idxs = IntSet(inrange(tree, x[:,i], l, false)) # within search radius
-        #TODO no velcoties or positions are linked?
+
+        #add boundary conditions here
+
         if v != nothing
-            #println(idxs)
             idxs_v = IntSet(inrange(tree_v, v[:,i], l_v, false))
-            #println(idxs_v)
-            #println(size(idxs_v))
             #changes idxs to an IntSet. Probably fine.
             intersect!(idxs, idxs_v)
-
-            #println(idxs)
-            #println("\n")
         end
         for idx in idxs #
             union!(ds,i,idx)
@@ -46,6 +39,17 @@ function groups(x, l, minlength, v = nothing, l_v = nothing)
             println("FOF: All points were linked. Exiting." )
             break
         end  # in case everything has been joined already exit
+    end
+    println("FOF: Doing boundaries")
+    #take care of periodic boundary conditions
+    if num_groups(ds) != 1
+        for dim in 1:size(x,1)
+            if v != nothing
+                @time link_boundaries!(ds, dim, x, x,l, v, v, l_v)
+            else
+                link_boundaries!(ds, dim, x, x, l)
+            end
+        end
     end
     println("FOF: finished grouping")
 
@@ -80,48 +84,100 @@ function groups(x, l, minlength, v = nothing, l_v = nothing)
     gps # An array of different  sized arrays containing the particle ids in the groups is returned
 end
 
-#TODO ranks, parents. I want this to work with the above api. 
-type ID_Set#datatype that is similar to IntDisjointSets but more general
-    #doesn't require sequential integers
-    main_dict::Dictionary
-    ngroups::Int
-
-    function ID_Set(I::Array{Int, 1})
-        main_dict = Dict{Int,Set}(i => Set(i) for i in I)
-        ngroups = size(I,1)
-        new(main_dict, ngroups)
+#TODO combine these 2 methods!
+#TODO not efficient
+function link_boundaries!(ds::IntDisjointSets, dim::Int, x1::Array{Float64,2}, x2::Array{Float64, 2},l::Float64)
+    if dim < 0 || dim > 4
+        throw(ArgumentError("dim must be between 1 and 3 inclusive."))
     end
-end
-
-function union!(ds::ID_Set, i1::Int, i2::Int)
-    if i2 in ds.main_dict[i1]
-        return nothing
-    end
-
-    push!(ds.main_dict[i1], i2)
-    ds.main_dict[i2] = ds.main_dict[i1]
-    ngroups-=1
-    nothing
-end
-
-function num_groups(ds::ID_Set) = ID_Set.ngroups
-
-
-
-#NOTE should I have it do all dims? Need that for 1 box but not several
-function link_boundaries(P_box1::Particles, P_box2::Particles, l::Float64, ds::IntDisjointSets)
-    for dim in 1:3
-        box_correction = zeros(3)
-        box_correction[dim] = BoxSize
-        for p1 in P_box1[P_box1.x[:,dim]< l]
-            for p2 in P_box2[P_box2.x[:, dim]> BoxSize - l]
-                if in_same_set(ds, p1, p2)#NOTE this will fail.
-                    #set needs to track id's; not implemented!
-                    continue
-                elseif euclidian(p1.x, p2.x+box_correction) < l
-                    union!(ds, p1, p2)#NOTE Not implemented!
-                end
+    NP1 = size(x1,2)
+    NP2 = size(x2,2)
+    for i in 1:NP1
+        if x1[dim, i] > l
+            continue
+        end
+        for j in 1:NP2
+            if in_same_set(ds, i, j)
+                continue
+            elseif x2[dim, j] < BoxSize-l
+                continue
+            elseif periodic_euclidean(x1[:,i], x2[:,j], BoxSize)[1] < l
+                union!(ds, i,j)
             end
         end
     end
+    nothing
 end
+
+link_boundaries!(ds::IntDisjointSets, dim::Int, x1::Array{Float64,2}, x2::Array{Float64, 2},l::Int) = link_boundaries!(ds, dim,x1, x2, convert(Float64, l))
+
+function link_boundaries!(ds::IntDisjointSets, dim::Int, x1::Array{Float64,2}, x2::Array{Float64, 2},l::Float64, v1::Array{Float64,2}, v2::Array{Float64,2}, l_v::Float64)
+    if dim < 0 || dim > 4
+        throw(ArgumentError("dim must be between 1 and 3 inclusive."))
+    end
+    NP1 = size(x1,2)
+    NP2 = size(x2,2)
+    for i in 1:NP1
+        if x1[dim, i] < l
+            continue
+        end
+        for j in 1:NP2
+            if in_same_set(ds, i, j)
+                continue
+            elseif x2[dim, j] > BoxSize-l
+                continue
+            elseif euclidean(v1[:,i],v2[:,j]) > l_v
+                continue
+            elseif periodic_euclidean(x1[:,i], x2[:,j], BoxSize)[1] < l
+                union!(ds, i,j)
+            end
+        end
+    end
+    nothing
+end
+
+link_boundaries!(ds::IntDisjointSets, dim::Int, x1::Array{Float64,2}, x2::Array{Float64, 2},l::Int, v1::Array{Float64,2}, v2::Array{Float64,2}, l_v::Int) = link_boundaries!(ds, dim,x1, x2, convert(Float64, l), v1, v2, convert(Float64, l_v))
+
+
+#TODO find a better place to put htis.
+function periodic_euclidean(a::AbstractArray, b::AbstractArray)
+    ld = abs(b .- a)
+    res = zeros(size(a,2))
+    for j in 1:size(a,2)
+        d = 0.
+        for i in 1:size(a,1)
+            @inbounds c = (ld[i,j] > .5) ? 1-ld[i,j] : ld[i,j]
+            d += c*c
+        end
+        res[j] = sqrt(d)
+    end
+    res
+end
+
+periodic_euclidean(a::AbstractArray, b::AbstractArray, D::Real) = D*periodic_euclidean(a,b)
+
+#TODO ranks, parents. I want this to work with the above api.
+#type ID_Set#datatype that is similar to IntDisjointSets but more general
+    #doesn't require sequential integers
+#    main_dict::Dictionary
+#    ngroups::Int
+
+#    function ID_Set(I::Array{Int, 1})
+#        main_dict = Dict{Int,Set}(i => Set(i) for i in I)
+#        ngroups = size(I,1)
+#        new(main_dict, ngroups)
+#    end
+#end
+
+#function union!(ds::ID_Set, i1::Int, i2::Int)
+#    if i2 in ds.main_dict[i1]
+#        return nothing
+#    end
+
+#    push!(ds.main_dict[i1], i2)
+#    ds.main_dict[i2] = ds.main_dict[i1]
+#    ngroups-=1
+#    nothing
+#end
+
+#function num_groups(ds::ID_Set) = ID_Set.ngroups

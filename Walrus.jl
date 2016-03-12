@@ -6,6 +6,7 @@ module Walrus
 using ArgParse
 using NearestNeighbors
 using DataStructures
+using Distances
 
 include("gadget_load.jl")
 include("FOF.jl")
@@ -33,23 +34,6 @@ function read_filenames()
     return d["gadget_fname"], d["output_fname"]
 end
 
-#TODO find a better place to put htis.
-function periodic_euclidean(a::AbstractArray, b::AbstractArray)
-    ld = abs(b .- a)
-    res = zeros(size(a,2))
-    for j in 1:size(a,2)
-        d = 0.
-        for i in 1:size(a,1)
-            @inbounds c = (ld[i,j] > .5) ? 1-ld[i,j] : ld[i,j]
-            d += c*c
-        end
-        res[j] = sqrt(d)
-    end
-    res
-end
-
-periodic_euclidean(a::AbstractArray, b::AbstractArray, D::Float64) = D*periodic_euclidean(a,b)
-
 input_fname, output_fname = read_filenames()
 
 particles, header = read_gadget_data(input_fname, false)
@@ -75,7 +59,7 @@ dx = 2
 
 #minlength = floor(Npart/1000) #?
 
-gps = groups(particles.x, dx, 10)#, particles.v, 1000)
+gps = groups(particles.x, dx, 10, particles.v, 1000)
 
 if size(gps,1) == 0
     println("No halos found; exiting.")
