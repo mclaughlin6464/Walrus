@@ -32,7 +32,7 @@ Base.getindex(P::Particles, I) = Particles(P.x[:, I], P.v[:, I],
                                                     P.id[I], P.m[I], P.pot[I])
 Base.start(P::Particles) = P[1]
 Base.next(P::Particles, state) = P[state+1]
-Base.done(P::Particles, state) = state = size(P,1)
+Base.done(P::Particles, state) = state == size(P,1)
 
 #didn't define setIndex!
 type Halo
@@ -87,7 +87,6 @@ function halo_output(halo::Halo) #ret"urns csv row for a given halo
     return join(output, ", ")
 end
 
-#TODO doesn't do periodic boundaries!
 function calc_potential!(P::Particles)
     #sometiems gadget doesn't do the work for us
     Npart = size(P.x,2)

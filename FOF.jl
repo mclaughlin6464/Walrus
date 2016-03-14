@@ -34,6 +34,7 @@ function groups(x, l, minlength, v = nothing, l_v = nothing)
 
         #6D FOF
         if v != nothing
+            #if l_v large, this line is very slow!
             idxs_v = IntSet(inrange(tree_v, v[:,i], l_v, false))
             #changes idxs to an IntSet. Probably fine.
             intersect!(idxs, idxs_v)
@@ -75,7 +76,6 @@ function groups(x, l, minlength, v = nothing, l_v = nothing)
             push!(gps[grouplo[ds.parents[i]]], i)
         end
     end
-
     println("FOF: Found ", Ngroups, " with ", minlength, " or more points")
     gps # An array of different  sized arrays containing the particle ids in the groups is returned
 end
