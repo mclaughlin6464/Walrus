@@ -68,11 +68,8 @@ end
 
 halos = Array{Halo}(size(gps,1))
 halo_ids = collect(1:size(gps,1))
-h = Halo(1, particles[gps[1]])
 
-for tup in zip(halo_ids, gps)
-    halo_id = tup[1]
-    halo_parts = tup[2]
+for (halo_id, halo_parts) in zip(halo_ids, gps)
     halos[halo_id] = Halo(halo_id, particles[halo_parts])
 end
 
