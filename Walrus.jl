@@ -7,9 +7,11 @@ using ArgParse
 using NearestNeighbors
 using DataStructures
 using Distances
+using Glob
 
 include("gadget_load.jl")
 include("FOF.jl")
+include("boxes.jl")
 include("halos.jl")
 
 const G = 6.67E-11
@@ -21,8 +23,11 @@ function read_filenames()
     s = ArgParseSettings()
 
     @add_arg_table s begin
-        "gadget_fname"
-            help = "the filename of the gadget output file"
+        "--one"
+            help = "Run on the file passed in, don't treat as root."
+            nargs = 0
+        "gadget_fname_root"
+            help = "the root filename of the gadget output file(s)"
             required = true
 
         "output_fname"
@@ -31,12 +36,19 @@ function read_filenames()
     end
 
     d = parse_args(s)
-    return d["gadget_fname"], d["output_fname"]
+    return d["one"], d["gadget_fname_root"], d["output_fname"]
 end
 
-input_fname, output_fname = read_filenames()
+use_file, input_fname, output_fname = read_filenames()
 
-particles, header = read_gadget_data(input_fname, false)
+#use the file as passed in
+if use_file
+    particles, header = read_gadget_data(input_fname, false)
+else #use the file as a root to load all files
+    dir_idx = rsearchindex(input_fname, "/")#split into pattern and dir
+    fnames = glob(input_fname[dir_idx+1:end]+"*", input_fname[1:dir_idx])
+    paricles, header = read_gadget_data(fnames, false)
+end
 
 const BoxSize = header.BoxSize
 const H = header.HubbleParam
@@ -59,7 +71,16 @@ dx = 2
 
 #minlength = floor(Npart/1000) #?
 
-gps = groups(particles.x, dx, 10, particles.v, 1000)
+#gps = groups(particles.x, dx, 10, particles.v, 1000)
+BoxDict = make_boxes(BoxSize, 8, particles.x)
+
+for box in values(BoxDict)
+    find_groups(box, dx)
+end
+
+gds = link_boundaries(BoxDict, BoxSize, dx, Npart)
+
+gps = get_halo_idxs(gds, 10)
 
 if size(gps,1) == 0
     println("No halos found; exiting.")

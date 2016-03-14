@@ -3,7 +3,7 @@
 #box object allows for partitioning of the particle space
 
 type Box
-    dim::Array{Tuple, 1}#bounadries in dims 1:3
+    dim::Array{Tuple{Float64, Float64}, 1}#bounadries in dims 1:3
     NPart::Int
     orig_idxs::Array{Int, 1}#original indexs of the passed in particles
     x::Array{Float64, 2} # positions
@@ -16,9 +16,9 @@ type Box
     U_Box::Box
     E_Box::Box
 
-    function Box(dim::Array{Tuple,1}, orig_idxs::Array{Int, 1}, x::Array{Float64, 2})
-        NPart = size(oirg_idxs, 2)
-        b = new(dim,NPart orig_idxs, x, KDTree(x), IntDisjointSets(NPart))
+    function Box(dim::Array{Tuple{Float64, Float64}, 1}, orig_idxs::Array{Int, 1}, x::Array{Float64, 2})
+        NPart = size(orig_idxs, 2)
+        b = new(dim,NPart, orig_idxs, x, KDTree(x), IntDisjointSets(NPart))
         b.N_Box = b
         b.U_Box = b
         b.E_Box = b
@@ -43,9 +43,9 @@ function make_boxes(BoxSize::Real, NBoxes::Int, x::Array{Float64,2})
     NDim = size(x,1)
     NBoxesDim = NBoxes
     if NDim ==2
-        NBoxesDim = sqrt(NBoxes)
+        NBoxesDim = convert(Int, floor(sqrt(NBoxes) ))
     elseif NDim == 3
-        NBoxesDim = cbrt(NBoxes)
+        NBoxesDim = convert(Int, floor(cbrt(NBoxes)))
     elseif NDim != 1
         throw(ArgumentError("Dimensions other than 1:3 unsupported"))
     end
@@ -57,13 +57,21 @@ function make_boxes(BoxSize::Real, NBoxes::Int, x::Array{Float64,2})
     if NDim == 1
         for i in 1:size(x,2)
             xBoxIdx = convert(Int, floor(x[1, i]/SubBoxSize))+1
-            push!(IdxDict[(xBoxIdx,)], i)
+            key = (xBoxIdx,)
+            if !haskey(IdxDict, key)
+                IdxDict[key] = Int[]
+            end
+            push!(IdxDict[key], i)
         end
     elseif NDim == 2
         for i in 1:size(x,2)
             xBoxIdx = convert(Int, floor(x[1, i]/SubBoxSize))+1
             yBoxIdx = convert(Int, floor(x[2, i]/SubBoxSize))+1
-            push!(IdxDict[(xBoxIdx,yBoxIdx)], i)
+            key = (xBoxIdx,yBoxIdx)
+            if !haskey(IdxDict, key)
+                IdxDict[key] = Int[]
+            end
+            push!(IdxDict[key], i)
         end
     else
         for i in 1:size(x,2)
@@ -71,10 +79,15 @@ function make_boxes(BoxSize::Real, NBoxes::Int, x::Array{Float64,2})
             xBoxIdx = convert(Int, floor(x[1, i]/SubBoxSize))+1
             yBoxIdx = convert(Int, floor(x[2, i]/SubBoxSize))+1
             zBoxIdx = convert(Int, floor(x[3, i]/SubBoxSize))+1
-            push!(IdxDict[(xBoxIdx,yBoxIdx,zBoxIdx)], i)
+            key = (xBoxIdx, yBoxIdx, zBoxIdx)
+            if !haskey(IdxDict, key)
+                IdxDict[key] = Int[]
+            end
+            push!(IdxDict[key], i)
         end
     end
 
+    #problems if there aren't particles in each cell.
     if NDim == 1
         for i in 1:NBoxesDim
             dim = [((i-1)*SubBoxSize, i*SubBoxSize)]
@@ -95,7 +108,7 @@ function make_boxes(BoxSize::Real, NBoxes::Int, x::Array{Float64,2})
         end
     end
     #link up neighbors
-    for (tup, b) in BoxDict
+    for b in values(BoxDict)
         if NDim == 1
             key = tup[1] == NBoxesDim-1 ? (NBoxesDim, ) : (rem((tup[1]+1)/NBoxesDim), )
             b.N_Box = BoxDict[key]
@@ -120,7 +133,8 @@ function make_boxes(BoxSize::Real, NBoxes::Int, x::Array{Float64,2})
     return BoxDict
 end
 
-function link_boundaries!(BoxDict::Dict, l::Real, NPart::Int )#Not sure about NPart
+#NPart, BoxSize from where?
+function link_boundaries(BoxDict::Dict,BoxSize::Real, l::Real, NPart::Int )#Not sure about NPart
     gds = IntDisjointSets(NPart)# a global disjoint set
     gds.ngroups = 0
     #make the global disjoint set.
@@ -137,7 +151,7 @@ function link_boundaries!(BoxDict::Dict, l::Real, NPart::Int )#Not sure about NP
 end
 
 #TODO get global boxsize here?
-function link_boundaries!(gds::IntDisjointSets, b::Box, l::Real)
+function link_boundaries!(gds::IntDisjointSets, b::Box, BoxSize::Real, l::Real)
     other_boxes = [b.N_Box]
     if ! is(b, b.E_Box)
         push!(other_boxes, b.E_box)
