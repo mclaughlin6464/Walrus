@@ -17,7 +17,7 @@ function groups(x, l, minlength, v = nothing, l_v = nothing)
     end
 
     Npart = size(x,2)
-    tree = KDTree(x) # Build tree with point data provided: KDtree is twice as fast as a balltree
+    @time tree = KDTree(x) # Build tree with point data provided: KDtree is twice as fast as a balltree
 
     if v != nothing
         tree_v = KDTree(v)
@@ -25,6 +25,7 @@ function groups(x, l, minlength, v = nothing, l_v = nothing)
     end
     println("FOF: built tree")
     ds = IntDisjointSets(Npart)
+    @time( begin
     for i in 1:Npart
         idxs = IntSet(inrange(tree, x[:,i], l, false)) # within search radius
 
@@ -47,6 +48,7 @@ function groups(x, l, minlength, v = nothing, l_v = nothing)
             break
         end  # in case everything has been joined already exit
     end
+    end)
 
     #make halo idxs from the sets
     idxs = find(ds.ranks) # all non-zero ranks are parent particles in groups

@@ -7,6 +7,7 @@ using ArgParse
 using NearestNeighbors
 using DataStructures
 using Distances
+using Glob
 
 include("gadget_load.jl")
 include("FOF.jl")
@@ -21,8 +22,11 @@ function read_filenames()
     s = ArgParseSettings()
 
     @add_arg_table s begin
-        "gadget_fname"
-            help = "the filename of the gadget output file"
+        "--one"
+            help = "Run on the file passed in, don't treat as root."
+            nargs = 0
+        "gadget_fname_root"
+            help = "the root filename of the gadget output file(s)"
             required = true
 
         "output_fname"
@@ -31,12 +35,19 @@ function read_filenames()
     end
 
     d = parse_args(s)
-    return d["gadget_fname"], d["output_fname"]
+    return d["one"], d["gadget_fname_root"], d["output_fname"]
 end
 
-input_fname, output_fname = read_filenames()
+use_file, input_fname, output_fname = read_filenames()
 
-particles, header = read_gadget_data(input_fname, false)
+#use the file as passed in
+if use_file
+    particles, header = read_gadget_data(input_fname, false)
+else #use the file as a root to load all files
+    dir_idx = rsearchindex(input_fname, "/")#split into pattern and dir
+    fnames = glob(input_fname[dir_idx+1:end]*"*", input_fname[1:dir_idx])
+    @time particles, header = read_gadget_data(fnames, false)
+end
 
 const BoxSize = header.BoxSize
 const H = header.HubbleParam
@@ -44,8 +55,9 @@ const H = header.HubbleParam
 #masses are in units of 1e10 m_sun/h, and distances are Mpc/h
 #h=0.633657
 
-Npart = size(particles, 1)
-Ndim = size(particles, 2)
+Npart = size(particles, 2)
+
+Ndim = size(particles, 1)
 Npart_1D = Npart
 if Ndim == 2
     Npart_1D = sqrt(Npart)
@@ -59,7 +71,7 @@ dx = 2
 
 #minlength = floor(Npart/1000) #?
 
-gps = groups(particles.x, dx, 10, particles.v, 1000)
+gps = groups(particles.x, dx, 10)#, particles.v, 1000)
 
 if size(gps,1) == 0
     println("No halos found; exiting.")

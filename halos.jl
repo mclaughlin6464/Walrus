@@ -34,6 +34,14 @@ Base.start(P::Particles) = P[1]
 Base.next(P::Particles, state) = P[state+1]
 Base.done(P::Particles, state) = state = size(P,1)
 
+
+function join!(P::Particles, P2::Particles)
+    P.x = cat(2, P.x, P2.x)
+    P.v = cat(2,P.v, P2.v)
+    P.id = cat(1,P.id, P2.id)
+    P.m= cat(1, P.m, P2.m)
+    P.pot = cat(1, P.pot, P2.pot)
+end
 #didn't define setIndex!
 type Halo
     id::Int
