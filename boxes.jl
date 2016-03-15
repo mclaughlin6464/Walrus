@@ -29,10 +29,13 @@ function find_groups!(b::Box, l::Real)
     for i in 1:b.NPart
         idxs = IntSet(inrange(b.tree, b.x[:,i], l, false)) # within search radius
 
+        println(b.ds)
+        println(idxs)
+        println(i)
         for idx in idxs #
             union!(b.ds,i,idx)
         end
-        if (num_groups(ds) == 1) # just in case people use too large a linking length don't waste time
+        if (num_groups(b.ds) == 1) # just in case people use too large a linking length don't waste time
             #println("FOF: All points were linked. Exiting." )
             break
         end  # in case everything has been joined already exit
@@ -108,24 +111,24 @@ function make_boxes(BoxSize::Real, NBoxes::Int, x::Array{Float64,2})
         end
     end
     #link up neighbors
-    for b in values(BoxDict)
+    for (tup, b) in BoxDict
         if NDim == 1
-            key = tup[1] == NBoxesDim-1 ? (NBoxesDim, ) : (rem((tup[1]+1)/NBoxesDim), )
+            key = tup[1] == NBoxesDim-1 ? (NBoxesDim, ) : (rem((tup[1]+1),NBoxesDim), )
             b.N_Box = BoxDict[key]
         elseif NDim == 2
-            key = tup[1] == NBoxesDim-1 ? (NBoxesDim, tup[2]) : (rem((tup[1]+1)/NBoxesDim),tup[2] )
+            key = tup[1] == NBoxesDim-1 ? (NBoxesDim, tup[2]) : (rem((tup[1]+1),NBoxesDim),tup[2] )
             b.N_Box = BoxDict[key]
 
-            key = tup[2] == NBoxesDim-1 ? (tup[1], NBoxesDim) : (tup[1], rem((tup[2]+1)/NBoxesDim))
+            key = tup[2] == NBoxesDim-1 ? (tup[1], NBoxesDim) : (tup[1], rem((tup[2]+1),NBoxesDim))
             b.E_Box = BoxDict[key]
         else
-            key = tup[1] == NBoxesDim-1 ? (NBoxesDim, tup[2], tup[3]) : (rem((tup[1]+1)/NBoxesDim),tup[2], tup[3] )
+            key = tup[1] == NBoxesDim-1 ? (NBoxesDim, tup[2], tup[3]) : (rem((tup[1]+1), NBoxesDim),tup[2], tup[3] )
             b.N_Box = BoxDict[key]
 
-            key = tup[2] == NBoxesDim-1 ? (tup[1], NBoxesDim, tup[3]) : (tup[1], rem((tup[2]+1)/NBoxesDim), tup[3])
+            key = tup[2] == NBoxesDim-1 ? (tup[1], NBoxesDim, tup[3]) : (tup[1], rem((tup[2]+1),NBoxesDim), tup[3])
             b.E_Box = BoxDict[key]
 
-            key = tup[3] == NBoxesDim-1 ? (tup[1],tup[2], NBoxesDim) : (tup[1],tup[2], rem((tup[3]+1)/NBoxesDim))
+            key = tup[3] == NBoxesDim-1 ? (tup[1],tup[2], NBoxesDim) : (tup[1],tup[2], rem((tup[3]+1),NBoxesDim))
             b.U_Box = BoxDict[key]
         end
 

@@ -46,8 +46,8 @@ if use_file
     particles, header = read_gadget_data(input_fname, false)
 else #use the file as a root to load all files
     dir_idx = rsearchindex(input_fname, "/")#split into pattern and dir
-    fnames = glob(input_fname[dir_idx+1:end]+"*", input_fname[1:dir_idx])
-    paricles, header = read_gadget_data(fnames, false)
+    fnames = glob(input_fname[dir_idx+1:end]* "*", input_fname[1:dir_idx])
+    particles, header = read_gadget_data(fnames, false)
 end
 
 const BoxSize = header.BoxSize
@@ -56,8 +56,8 @@ const H = header.HubbleParam
 #masses are in units of 1e10 m_sun/h, and distances are Mpc/h
 #h=0.633657
 
-Npart = size(particles, 1)
-Ndim = size(particles, 2)
+Npart = size(particles, 2)
+Ndim = size(particles, 1)
 Npart_1D = Npart
 if Ndim == 2
     Npart_1D = sqrt(Npart)
@@ -75,7 +75,7 @@ dx = 2
 BoxDict = make_boxes(BoxSize, 8, particles.x)
 
 for box in values(BoxDict)
-    find_groups(box, dx)
+find_groups!(box, dx)
 end
 
 gds = link_boundaries(BoxDict, BoxSize, dx, Npart)

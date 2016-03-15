@@ -75,7 +75,7 @@ function read_gadget_header(filename, verbose = false)
 end
 
 #TODO Quiet option?
-function read_gadget_data(filename, verbose = false)
+function read_gadget_data(filename::AbstractString, verbose = false)
 
     head = read_gadget_header(filename, verbose)
 
@@ -179,5 +179,14 @@ function read_gadget_data(filename, verbose = false)
 
     close(istream)
     #TODO doesn't return redshift and other relevant info
+    return p, head
+end
+
+function read_gadget_data(filenames, verbose = false)
+    p, head = read_gadget_data(filenames[1], verbose)
+    for fname in filenames[2:end]
+        newp, newhead = read_gadget_data(fname, verbose)
+        join!(p, newp)
+    end
     return p, head
 end
