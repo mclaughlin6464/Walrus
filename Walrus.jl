@@ -80,7 +80,7 @@ for box in values(BoxDict)
     find_groups!(box, dx)
 end
 end )
-println(" ")
+
 @time gds = link_boundaries(BoxDict, BoxSize, dx, Npart)
 
 @time gps = get_halo_idxs(gds, 10)
@@ -96,6 +96,8 @@ halo_ids = collect(1:size(gps,1))
 for (halo_id, halo_parts) in zip(halo_ids, gps)
     halos[halo_id] = Halo(halo_id, particles[halo_parts])
 end
+
+sort!(halos, by = x-> x.com[1])#sort by x value
 
 #TODO split up the vectors into their dims
 open(output_fname, "w") do io
