@@ -73,7 +73,7 @@ dx = q/Npart_1D #heard this is a good guess for linking length; not convinced.
 dx = 2
 
 #minlength = floor(Npart/1000) #?
-gps = groups(particles.x, dx, 10)#, particles.v, 1000)
+gps = groups(particles.x, dx, 9)#, particles.v, 1000)
 
 if size(gps,1) == 0
     println("No halos found; exiting.")
@@ -86,6 +86,8 @@ halo_ids = collect(1:size(gps,1))
 for (halo_id, halo_parts) in zip(halo_ids, gps)
     halos[halo_id] = Halo(halo_id, particles[halo_parts])
 end
+
+sort!(halos, by = x-> x.com[1])#sort by x value
 
 #TODO split up the vectors into their dims
 open(output_fname, "w") do io
