@@ -73,7 +73,6 @@ dx = q/Npart_1D #heard this is a good guess for linking length; not convinced.
 dx = 2
 
 #minlength = floor(Npart/1000) #?
-
 gps = groups(particles.x, dx, 10)#, particles.v, 1000)
 
 if size(gps,1) == 0
