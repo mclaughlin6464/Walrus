@@ -3,11 +3,17 @@
 
 module Walrus
 
+#addprocs(4) #TODO get this number as input or from the machine!
+
+export read_filenames, make_boxes, find_groups!,link_boundaries, get_halo_idxs, halo_output
+export read_gadget_data
+export Particles, Halo, Box
+
+#may have to be changed to require's
 using ArgParse
 using NearestNeighbors
 using DataStructures
 using Distances
-using Glob
 
 include("gadget_load.jl")
 include("FOF.jl")
@@ -38,6 +44,12 @@ function read_filenames()
     d = parse_args(s)
     return d["one"], d["gadget_fname_root"], d["output_fname"]
 end
+
+end
+
+println("HERE")
+using Walrus
+using Glob
 
 use_file, input_fname, output_fname = read_filenames()
 
@@ -74,14 +86,15 @@ dx = 2
 #minlength = floor(Npart/1000) #?
 
 #gps = groups(particles.x, dx, 10, particles.v, 1000)
-BoxDict = make_boxes(BoxSize, 8, particles.x)
-for box in values(BoxDict)
+@time BoxDict = make_boxes(BoxSize, 8, particles.x)
+#Use pmap here
+@time for box in values(BoxDict)
     find_groups!(box, dx)
 end
 
-gds = link_boundaries(BoxDict, BoxSize, dx, Npart)
+@time gds = link_boundaries(BoxDict, BoxSize, dx, Npart)
 
-gps = get_halo_idxs(gds, 10)
+@time gps = get_halo_idxs(gds, 10)
 
 if size(gps,1) == 0
     println("No halos found; exiting.")
@@ -92,7 +105,7 @@ halos = Array{Halo}(size(gps,1))
 halo_ids = collect(1:size(gps,1))
 
 for (halo_id, halo_parts) in zip(halo_ids, gps)
-    halos[halo_id] = Halo(halo_id, particles[halo_parts])
+    halos[halo_id] = Halo(halo_id, particles[halo_parts], H, BoxSize)
 end
 
 sort!(halos, by = x-> x.com[1])#sort by x value
@@ -104,6 +117,4 @@ open(output_fname, "w") do io
         write(io, halo_output(h) )
         write(io, "\n")
     end
-end
-
 end
