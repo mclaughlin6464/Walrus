@@ -57,6 +57,9 @@ const H = header.HubbleParam
 
 Npart = size(particles, 2)
 
+particles = particles[1:10:Npart]
+Npart = size(particles, 2)
+
 Ndim = size(particles, 1)
 Npart_1D = Npart
 if Ndim == 2
