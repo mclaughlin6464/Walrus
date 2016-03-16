@@ -17,7 +17,7 @@ function groups(x, l, minlength, v = nothing, l_v = nothing)
     end
 
     Npart = size(x,2)
-    @time tree = KDTree(x) # Build tree with point data provided: KDtree is twice as fast as a balltree
+    tree = KDTree(x) # Build tree with point data provided: KDtree is twice as fast as a balltree
 
     if v != nothing
         tree_v = KDTree(v)
@@ -25,7 +25,7 @@ function groups(x, l, minlength, v = nothing, l_v = nothing)
     end
     println("FOF: built tree")
     ds = IntDisjointSets(Npart)
-    @time( begin
+
     for i in 1:Npart
         idxs = IntSet(inrange(tree, x[:,i], l, false)) # within search radius
 
@@ -48,11 +48,10 @@ function groups(x, l, minlength, v = nothing, l_v = nothing)
             break
         end  # in case everything has been joined already exit
     end
-    end)
 
     #make halo idxs from the sets
-    groupDict = Dict{Int, Array{Int,1}}()
 
+    groupDict = Dict{Int, Array{Int,1}}()
     for i in 1:Npart
         p = find_root(ds,i)
         if !haskey(groupDict, p)
@@ -60,9 +59,10 @@ function groups(x, l, minlength, v = nothing, l_v = nothing)
         end
         push!(groupDict[p], i)
     end
-
+    
     gps = sort(collect(values(groupDict)), by = x-> length(x), rev = true)
     Ngroups = -1
+
     for i in eachindex(gps)
         if length(gps[i])< minlength
             Ngroups = i

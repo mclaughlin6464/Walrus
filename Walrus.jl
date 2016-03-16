@@ -9,6 +9,7 @@ using DataStructures
 using Distances
 using Glob
 
+#change to require?
 include("gadget_load.jl")
 include("FOF.jl")
 include("halos.jl")
@@ -46,7 +47,7 @@ if use_file
 else #use the file as a root to load all files
     dir_idx = rsearchindex(input_fname, "/")#split into pattern and dir
     fnames = glob(input_fname[dir_idx+1:end]*"*", input_fname[1:dir_idx])
-    @time particles, header = read_gadget_data(fnames, false)
+    particles, header = read_gadget_data(fnames, false)
 end
 
 const BoxSize = header.BoxSize
@@ -73,7 +74,7 @@ dx = q/Npart_1D #heard this is a good guess for linking length; not convinced.
 dx = 2
 
 #minlength = floor(Npart/1000) #?
-gps = groups(particles.x, dx, 9)#, particles.v, 1000)
+gps = groups(particles.x, dx, 10)#, particles.v, 1000)
 
 if size(gps,1) == 0
     println("No halos found; exiting.")
