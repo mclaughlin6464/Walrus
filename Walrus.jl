@@ -75,15 +75,13 @@ dx = 2
 
 #gps = groups(particles.x, dx, 10, particles.v, 1000)
 BoxDict = make_boxes(BoxSize, 8, particles.x)
-@time( begin
 for box in values(BoxDict)
     find_groups!(box, dx)
 end
-end )
 
-@time gds = link_boundaries(BoxDict, BoxSize, dx, Npart)
+gds = link_boundaries(BoxDict, BoxSize, dx, Npart)
 
-@time gps = get_halo_idxs(gds, 10)
+gps = get_halo_idxs(gds, 10)
 
 if size(gps,1) == 0
     println("No halos found; exiting.")

@@ -31,7 +31,6 @@ function groups(x, l, minlength, v = nothing, l_v = nothing)
         #add boundary conditions here
         boundary_idxs = link_boundaries(tree, x[:,i], l)
         union!(idxs, boundary_idxs)
-
         #6D FOF
         if v != nothing
             #if l_v large, this line is very slow!
@@ -39,45 +38,38 @@ function groups(x, l, minlength, v = nothing, l_v = nothing)
             #changes idxs to an IntSet. Probably fine.
             intersect!(idxs, idxs_v)
         end
-
         for idx in idxs #
             union!(ds,i,idx)
         end
+
         if (num_groups(ds) == 1) # just in case people use too large a linking length don't waste time
             println("FOF: All points were linked. Exiting." )
             break
         end  # in case everything has been joined already exit
     end
 
-    #make halo idxs from the sets
-    idxs = find(ds.ranks) # all non-zero ranks are parent particles in groups
-    groupid = [ds.parents[idxs[i]] => i  for i in eachindex(idxs)]
-    grouplen = Dict{Int,Int}()
+    groupDict = Dict{Int, Array{Int,1}}()
+
     for i in 1:Npart
-        if get(groupid, ds.parents[i], 0) > 0
-            grouplen[ds.parents[i]] = get(grouplen, ds.parents[i], 0) + 1
+        p = find_root(ds,i)
+        if !haskey(groupDict, p)
+            groupDict[p] = Int[]
+        end
+        push!(groupDict[p], i)
+    end
+
+    gps = sort(collect(values(groupDict)), by = x-> length(x), rev = true)
+    Ngroups = -1
+    for i in eachindex(gps)
+        if length(gps[i])< minlength
+            Ngroups = i
+            break
         end
     end
 
-    # now we collect the actual particles in the groups of the length we are interested in
-    for (k,v) in grouplen
-        if (v < minlength)
-            delete!(grouplen, k)
-        end
-    end
-
-    Ngroups = length(grouplen)
-    # and provide them in reverse order with the biggest group first
-    sid = sort(collect(grouplen), by = tuple -> last(tuple),rev=true)
-    grouplo = [sid[i].first => i for i in 1:length(sid)]
-    gps = [Int[] for i in 1:Ngroups]
-    for i in 1:Npart
-        if get(grouplen, ds.parents[i], 0) > 0
-            push!(gps[grouplo[ds.parents[i]]], i)
-        end
-    end
     println("FOF: Found ", Ngroups, " with ", minlength, " or more points")
-    gps # An array of different  sized arrays containing the particle ids in the groups is returned
+
+    return gps[1:Ngroups]# An array of different  sized arrays containing the particle ids in the groups is returned
 end
 
 function link_boundaries(tree::KDTree, dim::Int, x::Array{Float64,1}, l::Real)
@@ -105,6 +97,7 @@ function link_boundaries(tree::KDTree, x::Array{Float64,1}, l::Real)
 end
 
 #TODO find a better place to put htis.
+#TODO is wrong!
 function periodic_euclidean(a::AbstractArray, b::AbstractArray)
     ld = abs(b .- a)
     res = zeros(size(a,2))

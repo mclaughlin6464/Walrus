@@ -4,8 +4,8 @@
 #Particles
 
 type Particles
-    x::Array{Float64, 2} # positions
-    v::Array{Float64, 2} # velocities
+    x::Array{Float64} # positions
+    v::Array{Float64} # velocities
     id::Array{Int,1}  # ids
     m::Array{Float64,1} # mass
     pot::Array{Float64,1} # gravitational potential

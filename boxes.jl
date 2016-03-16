@@ -182,32 +182,26 @@ end
 
 function get_halo_idxs(ds::IntDisjointSets, minlength::Int)#return the idxs that define halos
     #make halo idxs from the sets
-    idxs = find(ds.ranks) # all non-zero ranks are parent particles in groups
-    groupid = [ds.parents[idxs[i]] => i  for i in eachindex(idxs)]
-    grouplen = Dict{Int,Int}()
+    groupDict = Dict{Int, Array{Int,1}}()
+    Npart = size(ds.parents, 1)
     for i in 1:Npart
-        if get(groupid, ds.parents[i], 0) > 0
-            grouplen[ds.parents[i]] = get(grouplen, ds.parents[i], 0) + 1
+        p = find_root(ds,i)
+        if !haskey(groupDict, p)
+            groupDict[p] = Int[]
+        end
+        push!(groupDict[p], i)
+    end
+
+    gps = sort(collect(values(groupDict)), by = x-> length(x), rev = true)
+    Ngroups = -1
+    for i in eachindex(gps)
+        if length(gps[i])< minlength
+            Ngroups = i
+            break
         end
     end
 
-    # now we collect the actual particles in the groups of the length we are interested in
-    for (k,v) in grouplen
-        if (v < minlength)
-            delete!(grouplen, k)
-        end
-    end
-
-    Ngroups = length(grouplen)
-    # and provide them in reverse order with the biggest group first
-    sid = sort(collect(grouplen), by = tuple -> last(tuple),rev=true)
-    grouplo = [sid[i].first => i for i in 1:length(sid)]
-    gps = [Int[] for i in 1:Ngroups]
-    for i in 1:Npart
-        if get(grouplen, ds.parents[i], 0) > 0
-            push!(gps[grouplo[ds.parents[i]]], i)
-        end
-    end
     println("FOF: Found ", Ngroups, " with ", minlength, " or more points")
-    return gps # An array of different  sized arrays containing the particle ids in the groups is returned
+
+    return gps[1:Ngroups] # An array of different  sized arrays containing the particle ids in the groups is returned
 end
