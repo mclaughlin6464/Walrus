@@ -57,6 +57,8 @@ const H = header.HubbleParam
 #h=0.633657
 
 Npart = size(particles, 2)
+particles = particles[1:10:Npart]
+Npart = size(particles, 2)
 Ndim = size(particles, 1)
 Npart_1D = Npart
 if Ndim == 2
@@ -73,14 +75,15 @@ dx = 2
 
 #gps = groups(particles.x, dx, 10, particles.v, 1000)
 BoxDict = make_boxes(BoxSize, 8, particles.x)
-
+@time( begin
 for box in values(BoxDict)
-find_groups!(box, dx)
+    find_groups!(box, dx)
 end
+end )
+println(" ")
+@time gds = link_boundaries(BoxDict, BoxSize, dx, Npart)
 
-gds = link_boundaries(BoxDict, BoxSize, dx, Npart)
-
-gps = get_halo_idxs(gds, 10)
+@time gps = get_halo_idxs(gds, 10)
 
 if size(gps,1) == 0
     println("No halos found; exiting.")

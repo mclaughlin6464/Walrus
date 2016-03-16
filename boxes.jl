@@ -17,7 +17,7 @@ type Box
     E_Box::Box
 
     function Box(dim::Array{Tuple{Float64, Float64}, 1}, orig_idxs::Array{Int, 1}, x::Array{Float64, 2})
-        NPart = size(orig_idxs, 2)
+        NPart = size(orig_idxs, 1)
         b = new(dim,NPart, orig_idxs, x, KDTree(x), IntDisjointSets(NPart))
         b.N_Box = b
         b.U_Box = b
@@ -26,12 +26,10 @@ type Box
 end
 
 function find_groups!(b::Box, l::Real)
+
     for i in 1:b.NPart
         idxs = IntSet(inrange(b.tree, b.x[:,i], l, false)) # within search radius
 
-        println(b.ds)
-        println(idxs)
-        println(i)
         for idx in idxs #
             union!(b.ds,i,idx)
         end
@@ -148,7 +146,7 @@ function link_boundaries(BoxDict::Dict,BoxSize::Real, l::Real, NPart::Int )#Not 
     end
 
     for (key, box) in BoxDict
-        link_boundaries!(gds, box, l)
+        link_boundaries!(gds, box,BoxSize, l)
     end
     return gds
 end
@@ -157,14 +155,14 @@ end
 function link_boundaries!(gds::IntDisjointSets, b::Box, BoxSize::Real, l::Real)
     other_boxes = [b.N_Box]
     if ! is(b, b.E_Box)
-        push!(other_boxes, b.E_box)
+        push!(other_boxes, b.E_Box)
     end
     if ! is(b, b.U_Box)
         push!(other_boxes, b.U_Box)
     end
 
     for (dim, ob) in zip(1:3, other_boxes)
-        BoxCorrection = zero(size(ob.x,1))
+        BoxCorrection = zeros(size(ob.x,1))
         if b.dim[dim][2] != ob.dim[dim][1] #we need to do periodic boundaries!
             BoxCorrection[dim] = BoxSize
         end
@@ -210,6 +208,6 @@ function get_halo_idxs(ds::IntDisjointSets, minlength::Int)#return the idxs that
             push!(gps[grouplo[ds.parents[i]]], i)
         end
     end
-    #println("FOF: Found ", Ngroups, " with ", minlength, " or more points")
+    println("FOF: Found ", Ngroups, " with ", minlength, " or more points")
     return gps # An array of different  sized arrays containing the particle ids in the groups is returned
 end
