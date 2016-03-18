@@ -32,26 +32,31 @@ function groups(x, l, minlength, v = nothing, l_v = nothing)
         #add boundary conditions here
         boundary_idxs = link_boundaries(tree, x[:,i], l)
         union!(idxs, boundary_idxs)
-
         #6D FOF
         if v != nothing
+            #if l_v large, this line is very slow!
             idxs_v = IntSet(inrange(tree_v, v[:,i], l_v, false))
             #changes idxs to an IntSet. Probably fine.
             intersect!(idxs, idxs_v)
         end
-
         for idx in idxs #
             union!(ds,i,idx)
         end
+
         if (num_groups(ds) == 1) # just in case people use too large a linking length don't waste time
             println("FOF: All points were linked. Exiting." )
             break
         end  # in case everything has been joined already exit
     end
 
+<<<<<<< HEAD
     #make halo idxs from the sets
 
     groupDict = Dict{Int, Array{Int,1}}()
+=======
+    groupDict = Dict{Int, Array{Int,1}}()
+
+>>>>>>> pFOF
     for i in 1:Npart
         p = find_root(ds,i)
         if !haskey(groupDict, p)
@@ -63,6 +68,11 @@ function groups(x, l, minlength, v = nothing, l_v = nothing)
     gps = sort(collect(values(groupDict)), by = x-> length(x), rev = true)
     Ngroups = -1
 
+<<<<<<< HEAD
+=======
+    gps = sort(collect(values(groupDict)), by = x-> length(x), rev = true)
+    Ngroups = -1
+>>>>>>> pFOF
     for i in eachindex(gps)
         if length(gps[i])< minlength
             Ngroups = i
@@ -98,20 +108,3 @@ function link_boundaries(tree::KDTree, x::Array{Float64,1}, l::Real)
     end
     return output_set
 end
-
-#TODO find a better place to put htis.
-function periodic_euclidean(a::AbstractArray, b::AbstractArray)
-    ld = abs(b .- a)
-    res = zeros(size(a,2))
-    for j in 1:size(a,2)
-        d = 0.
-        for i in 1:size(a,1)
-            @inbounds c = (ld[i,j] > .5) ? 1-ld[i,j] : ld[i,j]
-            d += c*c
-        end
-        res[j] = sqrt(d)
-    end
-    res
-end
-
-periodic_euclidean(a::AbstractArray, b::AbstractArray, D::Real) = D*periodic_euclidean(a,b)

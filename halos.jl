@@ -4,8 +4,8 @@
 #Particles
 
 type Particles
-    x::Array{Float64, 2} # positions
-    v::Array{Float64, 2} # velocities
+    x::Array{Float64} # positions
+    v::Array{Float64} # velocities
     id::Array{Int,1}  # ids
     m::Array{Float64,1} # mass
     pot::Array{Float64,1} # gravitational potential
@@ -24,6 +24,7 @@ end
 Base.show(P::Particles) = "$(size(P.id)) Particles"
 Base.size(P::Particles) = size(P.id)
 Base.size(P::Particles, i::Int) = size(P.x, i)
+Base.endof(P::Particles) = endof(P.id)
 
 #Base.linearindexing(::Particles) = Base.LinearFast()
 Base.getindex(P::Particles, i::Int) = Particles(Array(P.x[:, i] ), Array(P.v[:, i]),
@@ -32,9 +33,12 @@ Base.getindex(P::Particles, I) = Particles(P.x[:, I], P.v[:, I],
                                                     P.id[I], P.m[I], P.pot[I])
 Base.start(P::Particles) = P[1]
 Base.next(P::Particles, state) = P[state+1]
-Base.done(P::Particles, state) = state = size(P,1)
+Base.done(P::Particles, state) = state == size(P,1)
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> pFOF
 function join!(P::Particles, P2::Particles)
     P.x = cat(2, P.x, P2.x)
     P.v = cat(2,P.v, P2.v)
@@ -56,7 +60,7 @@ type Halo
     spin_param::Float64
 
     #TODO units?
-    function Halo(id::Int, P::Particles)
+    function Halo(id::Int, P::Particles, H::Real, BoxSize::Real)
 
         total_mass = sum(P.m)
         com = reshape(transpose(sum(P.x.*transpose(P.m), 2)./total_mass), 3)
@@ -69,7 +73,7 @@ type Halo
         E = abs(sum(P.pot)) #TODO pot of halo or all parts?
         if E == 0 #gadget didn't calculate the potentials!
             #TODO better flag than this!
-            calc_potential!(P)
+            calc_potential!(P, BoxSize)
             E = abs(sum(P.pot))
         end
         spin_param = J*sqrt(E)/(G*sqrt(total_mass)^5)
@@ -95,8 +99,7 @@ function halo_output(halo::Halo) #ret"urns csv row for a given halo
     return join(output, ", ")
 end
 
-#TODO doesn't do periodic boundaries!
-function calc_potential!(P::Particles)
+function calc_potential!(P::Particles, BoxSize::Real)
     #sometiems gadget doesn't do the work for us
     Npart = size(P.x,2)
     for i in 1:Npart
@@ -112,3 +115,20 @@ function calc_potential!(P::Particles)
     end
     nothing
 end
+
+#TODO is wrong!
+function periodic_euclidean(a::AbstractArray, b::AbstractArray)
+    ld = abs(b .- a)
+    res = zeros(size(a,2))
+    for j in 1:size(a,2)
+        d = 0.
+        for i in 1:size(a,1)
+            @inbounds c = (ld[i,j] > .5) ? 1-ld[i,j] : ld[i,j]
+            d += c*c
+        end
+        res[j] = sqrt(d)
+    end
+    res
+end
+
+periodic_euclidean(a::AbstractArray, b::AbstractArray, D::Real) = D*periodic_euclidean(a,b)

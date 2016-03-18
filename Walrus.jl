@@ -3,7 +3,11 @@
 
 module Walrus
 
-using ArgParse
+export get_halos,get_halos_p, halo_output
+export read_gadget_data
+export Particles, Halo, Box
+
+#may have to be changed to require's
 using NearestNeighbors
 using DataStructures
 using Distances
@@ -11,11 +15,13 @@ using Glob
 
 #change to require?
 include("gadget_load.jl")
-include("FOF.jl")
+#include("FOF.jl")
+include("boxes.jl")
 include("halos.jl")
 
 const G = 6.67E-11
 
+<<<<<<< HEAD
 #things to add:
 #linking length
 #minlength
@@ -29,12 +35,18 @@ function read_filenames()
         "gadget_fname_root"
             help = "the root filename of the gadget output file(s)"
             required = true
+=======
+function get_halos(particles::Particles, BoxSize::Real,H::Real, dx=2, NBoxes = 8)
+    Npart = size(particles, 2)
+>>>>>>> pFOF
 
-        "output_fname"
-            help = "the filename to write the output catalog to"
-            required = true
+    BoxDict = make_boxes(BoxSize, NBoxes, particles.x)
+    #Use pmap here
+    for box in values(BoxDict)
+        find_groups!(box, dx)
     end
 
+<<<<<<< HEAD
     d = parse_args(s)
     return d["one"], d["gadget_fname_root"], d["output_fname"]
 end
@@ -49,13 +61,21 @@ else #use the file as a root to load all files
     fnames = glob(input_fname[dir_idx+1:end]*"*", input_fname[1:dir_idx])
     particles, header = read_gadget_data(fnames, false)
 end
+=======
+    gds = link_boundaries(BoxDict, BoxSize, dx, Npart)
 
-const BoxSize = header.BoxSize
-const H = header.HubbleParam
+    gps = get_halo_idxs(gds, 10)
+>>>>>>> pFOF
 
-#masses are in units of 1e10 m_sun/h, and distances are Mpc/h
-#h=0.633657
+    if size(gps,1) == 0
+        println("No halos found; exiting.")
+        return Halo(gps[1])
+    end
 
+    halos = Array{Halo}(size(gps,1))
+    halo_ids = collect(1:size(gps,1))
+
+<<<<<<< HEAD
 Npart = size(particles, 2)
 
 particles = particles[1:10:Npart]
@@ -67,27 +87,47 @@ if Ndim == 2
     Npart_1D = sqrt(Npart)
 elseif Ndim == 3
     Npart_1D = cbrt(Npart)
+=======
+    for (halo_id, halo_parts) in zip(halo_ids, gps)
+        halos[halo_id] = Halo(halo_id, particles[halo_parts], H, BoxSize)
+    end
+    return halos
+>>>>>>> pFOF
 end
 
-q = .5
-dx = q/Npart_1D #heard this is a good guess for linking length; not convinced.
-dx = 2
+function get_halos_p(particles::Particles, BoxSize::Real,H::Real, dx=2, NBoxes = 8)
+    Npart = size(particles, 2)
 
+<<<<<<< HEAD
 #minlength = floor(Npart/1000) #?
 gps = groups(particles.x, dx, 10)#, particles.v, 1000)
+=======
+    BoxDict = make_boxes(BoxSize, NBoxes, particles.x)
+    #Use pmap here
+    #for box in values(BoxDict)
+    #    find_groups!(box, dx)
+    #end
 
-if size(gps,1) == 0
-    println("No halos found; exiting.")
-    quit()
-end
+    boxes = pmap(d -> find_groups(d[1], d[2], dx), BoxDict)
+>>>>>>> pFOF
 
-halos = Array{Halo}(size(gps,1))
-halo_ids = collect(1:size(gps,1))
+    for (k,b) in boxes
+        BoxDict[k] = b
+    end
 
-for (halo_id, halo_parts) in zip(halo_ids, gps)
-    halos[halo_id] = Halo(halo_id, particles[halo_parts])
-end
+    gds = link_boundaries(BoxDict, BoxSize, dx, Npart)
 
+    gps = get_halo_idxs(gds, 10)
+
+    if size(gps,1) == 0
+        println("No halos found; exiting.")
+        return Halo(gps[1])
+    end
+
+    halos = Array{Halo}(size(gps,1))
+    halo_ids = collect(1:size(gps,1))
+
+<<<<<<< HEAD
 sort!(halos, by = x-> x.com[1])#sort by x value
 
 #TODO split up the vectors into their dims
@@ -96,7 +136,12 @@ open(output_fname, "w") do io
     for h in halos
         write(io, halo_output(h) )
         write(io, "\n")
+=======
+    for (halo_id, halo_parts) in zip(halo_ids, gps)
+        halos[halo_id] = Halo(halo_id, particles[halo_parts], H, BoxSize)
+>>>>>>> pFOF
     end
+    return halos
 end
 
 end
