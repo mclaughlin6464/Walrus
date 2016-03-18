@@ -24,6 +24,7 @@ end
 Base.show(P::Particles) = "$(size(P.id)) Particles"
 Base.size(P::Particles) = size(P.id)
 Base.size(P::Particles, i::Int) = size(P.x, i)
+Base.endof(P::Particles) = endof(P.id)
 
 #Base.linearindexing(::Particles) = Base.LinearFast()
 Base.getindex(P::Particles, i::Int) = Particles(Array(P.x[:, i] ), Array(P.v[:, i]),

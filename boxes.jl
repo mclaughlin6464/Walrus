@@ -40,6 +40,12 @@ function find_groups!(b::Box, l::Real)
     end
 end
 
+function find_groups(k::Tuple, b::Box, l::Real)
+
+    find_groups!(b, l)
+    return k, b
+end
+
 function make_boxes(BoxSize::Real, NBoxes::Int, x::Array{Float64,2})
     NDim = size(x,1)
     NBoxesDim = NBoxes
@@ -50,6 +56,7 @@ function make_boxes(BoxSize::Real, NBoxes::Int, x::Array{Float64,2})
     elseif NDim != 1
         throw(ArgumentError("Dimensions other than 1:3 unsupported"))
     end
+
     SubBoxSize = BoxSize/NBoxesDim
     IdxDict = Dict{Tuple, Array{Int,1}}()
     BoxDict = Dict{Tuple, Box}()
@@ -111,23 +118,41 @@ function make_boxes(BoxSize::Real, NBoxes::Int, x::Array{Float64,2})
     #link up neighbors
     for (tup, b) in BoxDict
         if NDim == 1
-            key = tup[1] == NBoxesDim-1 ? (NBoxesDim, ) : (rem((tup[1]+1),NBoxesDim), )
+            if NBoxesDim == 1
+                key = (1,)
+            else
+                key = tup[1] == NBoxesDim-1 ? (NBoxesDim, ) : (rem((tup[1]+1),NBoxesDim), )
+            end
             b.N_Box = BoxDict[key]
         elseif NDim == 2
-            key = tup[1] == NBoxesDim-1 ? (NBoxesDim, tup[2]) : (rem((tup[1]+1),NBoxesDim),tup[2] )
-            b.N_Box = BoxDict[key]
+            if NBoxesDim == 1
+                key = (1,1)
+                b.N_Box = BoxDict[key]
+                b.E_Box = BoxDict[key]
 
-            key = tup[2] == NBoxesDim-1 ? (tup[1], NBoxesDim) : (tup[1], rem((tup[2]+1),NBoxesDim))
-            b.E_Box = BoxDict[key]
+            else
+                key = tup[1] == NBoxesDim-1 ? (NBoxesDim, tup[2]) : (rem((tup[1]+1),NBoxesDim),tup[2] )
+                b.N_Box = BoxDict[key]
+
+                key = tup[2] == NBoxesDim-1 ? (tup[1], NBoxesDim) : (tup[1], rem((tup[2]+1),NBoxesDim))
+                b.E_Box = BoxDict[key]
+            end
         else
-            key = tup[1] == NBoxesDim-1 ? (NBoxesDim, tup[2], tup[3]) : (rem((tup[1]+1), NBoxesDim),tup[2], tup[3] )
-            b.N_Box = BoxDict[key]
+            if NBoxesDim == 1
+                key = (1,1,1)
+                b.N_Box = BoxDict[key]
+                b.E_Box = BoxDict[key]
+                b.U_Box = BoxDict[key]
+            else
+                key = tup[1] == NBoxesDim-1 ? (NBoxesDim, tup[2], tup[3]) : (rem((tup[1]+1), NBoxesDim),tup[2], tup[3] )
+                b.N_Box = BoxDict[key]
 
-            key = tup[2] == NBoxesDim-1 ? (tup[1], NBoxesDim, tup[3]) : (tup[1], rem((tup[2]+1),NBoxesDim), tup[3])
-            b.E_Box = BoxDict[key]
+                key = tup[2] == NBoxesDim-1 ? (tup[1], NBoxesDim, tup[3]) : (tup[1], rem((tup[2]+1),NBoxesDim), tup[3])
+                b.E_Box = BoxDict[key]
 
-            key = tup[3] == NBoxesDim-1 ? (tup[1],tup[2], NBoxesDim) : (tup[1],tup[2], rem((tup[3]+1),NBoxesDim))
-            b.U_Box = BoxDict[key]
+                key = tup[3] == NBoxesDim-1 ? (tup[1],tup[2], NBoxesDim) : (tup[1],tup[2], rem((tup[3]+1),NBoxesDim))
+                b.U_Box = BoxDict[key]
+            end
         end
 
     end
@@ -153,11 +178,12 @@ end
 
 #TODO get global boxsize here?
 function link_boundaries!(gds::IntDisjointSets, b::Box, BoxSize::Real, l::Real)
+    NDims = size(b.dim,1)
     other_boxes = [b.N_Box]
-    if ! is(b, b.E_Box)
+    if NDims > 1
         push!(other_boxes, b.E_Box)
     end
-    if ! is(b, b.U_Box)
+    if NDims>2
         push!(other_boxes, b.U_Box)
     end
 
@@ -180,10 +206,27 @@ function link_boundaries!(gds::IntDisjointSets, b::Box, BoxSize::Real, l::Real)
     end
 end
 
+function link_boundaries(BoxDict::Dict,BoxSize::Real, l::Real, NPart::Int )#Not sure about NPart
+    gds = IntDisjointSets(NPart)# a global disjoint set
+    gds.ngroups = 0
+    #make the global disjoint set.
+    for (key, box) in BoxDict
+        gds.parents[box.orig_idxs] = box.orig_idxs[box.ds.parents]
+        gds.ranks[box.orig_idxs] = box.ds.ranks
+        gds.ngroups+=box.ds.ngroups
+    end
+
+    for (key, box) in BoxDict
+        link_boundaries!(gds, box,BoxSize, l)
+    end
+    return gds
+end
+
 function get_halo_idxs(ds::IntDisjointSets, minlength::Int)#return the idxs that define halos
     #make halo idxs from the sets
     groupDict = Dict{Int, Array{Int,1}}()
     Npart = size(ds.parents, 1)
+    #TODO slow, not sure how to cleverly parallelize
     for i in 1:Npart
         p = find_root(ds,i)
         if !haskey(groupDict, p)
